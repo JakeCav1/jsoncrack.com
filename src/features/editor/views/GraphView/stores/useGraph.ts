@@ -8,6 +8,16 @@ import { parser } from "../lib/jsonParser";
 import { getChildrenEdges } from "../lib/utils/getChildrenEdges";
 import { getOutgoers } from "../lib/utils/getOutgoers";
 
+// --- Add this helper function for flat key-value nodes ---
+// If your nodes are hierarchical, let me know!
+function buildJsonFromNodes(nodes: NodeData[]): any {
+  const obj: any = {};
+  nodes.forEach(node => {
+    obj[node.id] = node.text;
+  });
+  return obj;
+}
+
 export interface Graph {
   viewPort: ViewPort | null;
   direction: CanvasDirection;
@@ -62,6 +72,7 @@ interface GraphActions {
   centerView: () => void;
   clearGraph: () => void;
   setZoomFactor: (zoomFactor: number) => void;
+  updateNodeValue: (id: string, value: any) => void;
 }
 
 const useGraph = create<Graph & GraphActions>((set, get) => ({
@@ -233,6 +244,27 @@ const useGraph = create<Graph & GraphActions>((set, get) => ({
   },
   toggleFullscreen: fullscreen => set({ fullscreen }),
   setViewPort: viewPort => set({ viewPort }),
+
+  // --- Use id for unique node update and update editor JSON ---
+  updateNodeValue: (id, value) => set(state => {
+    const nodes = state.nodes.map(node =>
+      node.id === id ? { ...node, text: value } : node
+    );
+    let selectedNode = state.selectedNode;
+    if (selectedNode && selectedNode.id === id) {
+      selectedNode = { ...selectedNode, text: value };
+    }
+
+    // --- Update the editor JSON as well ---
+    try {
+      const newJson = buildJsonFromNodes(nodes); // Replace with your actual logic if needed
+      useJson.getState().setJson(JSON.stringify(newJson, null, 2));
+    } catch (e) {
+      // Optionally handle errors
+    }
+
+    return { ...state, nodes, selectedNode };
+  }),
 }));
 
 export default useGraph;
